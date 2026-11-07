@@ -1,6 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <AssemblyName>RevitMCP.Tests.SocketOrigin</AssemblyName>
-    <RootNamespace>RevitMCP.Tests.SocketOrigin</RootNamespace>
-  </PropertyGroup>
-</Project>
