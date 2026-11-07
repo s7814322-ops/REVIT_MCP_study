@@ -1,0 +1,20 @@
+name: Publish Abby midnight settings ZIP
+on:
+  push:
+    branches: [codex/abby-midnight-download]
+    paths: [.github/workflows/abby-midnight-download.yml]
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify and publish the settings package
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s  %s\n' b7508fb58af6b3330055d02e3dfaffca1ef3eb6e07835d9addae9c6b89ab2726 Abby-Update-Midnight.zip | sha256sum -c -
+          gh release create abby-schedule-midnight --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --latest=false --title "Abby 午夜更新設定包" --notes "下載並解壓縮 Abby-Update-Midnight.zip，再執行 Abby-Set-Midnight.cmd，將 Abby 更新排程設為每天 00:00。" Abby-Update-Midnight.zip
