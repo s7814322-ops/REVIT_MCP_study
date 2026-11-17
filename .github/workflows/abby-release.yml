@@ -38,6 +38,7 @@ jobs:
         run: |
           $version = 'abby-my-revit-tool-' + $env:GITHUB_SHA.Substring(0,12)
           ./scripts/abby/New-AbbyPackage.ps1 -Version $version
+          ./tests/abby-family-library.ps1 -Package "$PWD/output/releases/Abby-MCP-$version.zip"
           ./scripts/abby/New-AbbyInstallKit.ps1 -Package "$PWD/output/releases/Abby-MCP-$version.zip"
           Push-Location MCP-Server
           node --test tests/*.test.mjs

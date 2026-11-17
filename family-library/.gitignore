@@ -1,0 +1,10 @@
+node_modules/
+dist/
+sources.local.json
+*.log
+*-index.json
+rendered-previews.json
+preview-packs/
+revit/
+*.rfa
+*.rvt

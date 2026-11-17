@@ -32,7 +32,9 @@ param(
     [string]$AddinsRoot = "",
 
     # R6：備份輪替，只保留最近 N 份 .bak，其餘自動清除。
-    [int]$KeepBackups = 3
+    [int]$KeepBackups = 3,
+    [string]$FamilyLibraryRoot,
+    [string]$FamilyPreviewPack
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -310,6 +312,8 @@ function Install-ToVersion {
         return [pscustomobject]@{ Version = $RevitYear; Status = 'SKIP'; Reason = 'no build output' }
     }
     $srcDlls = @(Get-ChildItem -Path $srcDir -Filter '*.dll' -File -ErrorAction SilentlyContinue)
+    $webViewLoader=Join-Path $srcDir 'runtimes\win-x64\native\WebView2Loader.dll'
+    if(Test-Path -LiteralPath $webViewLoader){$srcDlls+=Get-Item -LiteralPath $webViewLoader}
     if ($srcDlls.Count -eq 0) {
         Write-Host "  [略過] $srcDir 內沒有任何 DLL" -ForegroundColor Yellow
         return [pscustomobject]@{ Version = $RevitYear; Status = 'SKIP'; Reason = 'build output empty' }
@@ -489,4 +493,9 @@ Write-Host ""
 Write-Host "如有問題，請參考 README.zh-TW.md 的「常見問題」章節" -ForegroundColor Cyan
 Write-Host ""
 
+if ($FamilyLibraryRoot) {
+    & (Join-Path $projectRoot 'family-library\Setup-Library.ps1') -FamilyRoot $FamilyLibraryRoot -PreviewPack $FamilyPreviewPack
+    if ($LASTEXITCODE -ne 0) { Wait-ForExit 1 }
+}
 Wait-ForExit 0
+
