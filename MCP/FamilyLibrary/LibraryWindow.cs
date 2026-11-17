@@ -32,6 +32,7 @@ namespace RevitMCP.FamilyLibrary {
  public static class LibraryRibbon {
   public static void Initialize(UIControlledApplication app) {
    try{LibraryDeployment.InstallCurrent(Data.Root);}catch(Exception error){RevitMCP.Core.Logger.Error("Family library program deployment failed",error);}
+   try{if(File.Exists(Path.Combine(Data.Root,"Start-Library.ps1")))Process.Start(new ProcessStartInfo("powershell.exe","-NoProfile -ExecutionPolicy Bypass -File \""+Path.Combine(Data.Root,"Start-Library.ps1")+"\" -NoBrowser"){UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden});}catch(Exception error){RevitMCP.Core.Logger.Error("Family library background startup failed",error);}
    // An earlier standalone ABBY install may still own this ribbon entry.
    // Leave its registration untouched, while still updating its shared web program.
    var legacy=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"Autodesk","Revit","Addins",app.ControlledApplication.VersionNumber,"AbbyFamilyLibrary.addin");
