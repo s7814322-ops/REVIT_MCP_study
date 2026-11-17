@@ -1,0 +1,56 @@
+# 本機 Revit 元件圖書館
+
+搜尋 RFA、顯示版本與參數，瀏覽圖片與各族群類型的可旋轉／縮放 3D，並從 Revit 直接載入與放置。整合於現有 RevitMCP 外掛，不建立第二個 add-in manifest；元件庫視窗使用獨立 ExternalEvent，不依賴 MCP 連線。
+
+## 在另一台電腦使用
+
+1. 安裝 Node.js LTS、.NET SDK、對應年度 Revit。從本專案的單一 `MCP/RevitMCP.csproj` 建置對應年度，例如 `dotnet build -c Release.R25 MCP/RevitMCP.csproj`。
+2. 使用主安裝程式，指定這台電腦的「元件」根目錄：
+
+```powershell
+./scripts/install-addon.ps1 -Version 2025 -NonInteractive -FamilyLibraryRoot 'E:\BIM\元件'
+```
+
+元件庫會安裝到目前使用者的 `%LOCALAPPDATA%\AbbyMCP\door-library`。各機的 `sources.local.json` 不進 GitHub，也不會被程式更新覆蓋。安裝不修改來源 RFA。現有自動更新發布流程尚未包含元件庫套件，合併本 PR 不會自動替其他電腦安裝。
+
+3. 重啟 Revit，在「MCP Tools → 元件圖書館」搜尋元件，選擇族群類型，按「載入並放置」，回到專案點選位置或宿主；Esc 結束。使用工作副本載入，來源不修改。舊版族群只在專案內升級；高於目前 Revit 版本的族群不可載入。已有同名族群／類型時，提示使用專案現有版本，不自動覆寫。
+
+目前實機安裝目標為 2024、2025；2026 整合仍需建置與實測。較早年度按鈕會提示不支援。各類元件仍需符合 Revit 原生放置規則。
+
+## 路徑設定
+
+根目錄下預設有 `建築/門`、`建築/窗` 與兩個外部蒐集分類。根目錄變了，只改 `familyRoot`；若子資料夾結構也不同，可依分類覆寫完整路徑：
+
+```json
+{
+  "familyRoot": "E:/BIM/元件",
+  "paths": {
+    "doors": "F:/共用族群/門",
+    "windows": "F:/共用族群/窗",
+    "safety": "F:/共用族群/職安衛",
+    "accessible-toilet": "F:/共用族群/無障礙廁所"
+  }
+}
+```
+
+`ABBY_FAMILY_ROOT` 環境變數也能覆寫根目錄。修改後重啟本機網頁服務。分類 ID 與分類內相對檔名保持不變，元件 ID 便不受磁碟代號或 Windows 帳號影響。子資料夾／檔名改動會視為另一個元件。
+
+## 重用既有 3D 預覽
+
+GitHub 只存程式，**不存 RFA、專案、catalog、預覽圖、3D 幾何、私人路徑或匯出日誌**。元件檔案請透過既有 OneDrive、NAS 或其他獲授權方式同步。
+
+在已有預覽的電腦、已安裝的元件庫目錄執行：
+
+```powershell
+node portable-previews.mjs export 'E:\Transfer\family-preview-pack'
+```
+
+將預覽套件私下複製到另一台電腦，安裝時加上 `-FamilyPreviewPack 'E:\Transfer\family-preview-pack'`。也可單獨執行 `family-library/Setup-Library.ps1 -FamilyRoot ... -PreviewPack ...` 設定網頁。
+
+套件只含已匯出的圖片、幾何與必要索引，不含 RFA。來源 ID、相對檔名與 SHA-256 相同才會綁定既有預覽。來源檔案變更後，清單、版本、參數與內建圖會更新，3D 標示待重新匯出。新增／變更的元件仍需用對應 Revit 年度，或另外授權的升級副本產生新 3D。
+
+元件庫僅監聽 `127.0.0.1:4318`；不需將網頁公開到網際網路。
+
+## 驗證
+
+`node --test family-library/config.test.mjs` 驗證跨電腦根目錄、分類覆寫與可攜預覽的版本範圍。編譯成功不等同 Revit 實際放置驗證；請在空白測試專案先確認嵌入網頁、預覽、指定類型及宿主放置。
