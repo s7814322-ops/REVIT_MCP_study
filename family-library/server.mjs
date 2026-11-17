@@ -4,14 +4,15 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {buildCatalog, sourceFolder} from './build-catalog.mjs';
-import {librarySources} from './sources.mjs';
+import {librarySources,loadSources} from './sources.mjs';
 import {listFamilyFiles} from './source-files.mjs';
 import {createSettings} from './settings.mjs';
+import {createPreviewSync} from './preview-sync.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 export function startLibrary({source, sources = source ? [{id:'doors',label:path.basename(source),path:source}] : librarySources,
   dist = path.join(root,'dist'), metadataRoot = root,
-  port = 4318, pollMs = 2000, settleMs = 1200,configPath=path.join(metadataRoot,'sources.local.json')} = {}) {
+  port = 4318, pollMs = 2000, settleMs = 1200,configPath=path.join(metadataRoot,'sources.local.json'),previewSyncEnabled=true} = {}) {
 let catalog = fs.existsSync(path.join(dist,'catalog.json')) ? JSON.parse(fs.readFileSync(path.join(dist, 'catalog.json'), 'utf8')) : {items:[],sources:[],source:'',generated:new Date().toISOString(),revision:'unconfigured'};
 let families = new Map(catalog.items.map(item => [item.id, item]));
 const marker=path.join(metadataRoot,'.program-version');
@@ -60,6 +61,11 @@ function refresh(force = false) {
 refresh(true);
 const monitor=setInterval(refresh,pollMs);
 monitor.unref();
+const previewSync=createPreviewSync({metadataRoot,configPath,getCatalog:()=>catalog,onSourcesChanged:()=>{
+ try{const next=loadSources(configPath);if(next.some(source=>!fs.existsSync(source.path)))return false;sources=next;candidate=null;refresh(true);return sync.state==='watching';}catch{return false;}
+}});
+const previewMonitor=previewSyncEnabled?setInterval(()=>previewSync.tick(),5000):null;
+if(previewMonitor){previewMonitor.unref();previewSync.tick();}
 const mimeTypes = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.json':'application/json; charset=utf-8'};
 const settings=createSettings({configPath,dist,metadataRoot,getSources:()=>sources,applySources:(next,updated)=>{
  sources=next;catalog=updated;families=new Map(updated.items.map(item=>[item.id,item]));applied=fingerprint();candidate=null;
@@ -84,7 +90,7 @@ const server = http.createServer((request, response) => {
   if (!['GET','HEAD'].includes(request.method)) {response.writeHead(405).end();return;}
   if (route === '/api/health') {
     response.writeHead(200, {'Content-Type':'application/json','Cache-Control':'no-store'});
-    response.end(JSON.stringify({application:'abby-door-library', programVersion,families:families.size,revision:publicCatalog().revision,sync}));
+    response.end(JSON.stringify({application:'abby-door-library', programVersion,families:families.size,revision:publicCatalog().revision,sync,previewSync:previewSyncEnabled?previewSync.status:{state:'disabled'}}));
     return;
   }
   if (route === '/api/catalog' || route === '/catalog.json' || route === '/catalog.js') {
@@ -120,9 +126,9 @@ const server = http.createServer((request, response) => {
     stream.pipe(response);
   });
 });
-server.on('close',()=>clearInterval(monitor));
+server.on('close',()=>{clearInterval(monitor);if(previewMonitor)clearInterval(previewMonitor);});
 server.listen(port, '127.0.0.1', () => console.log('Door library ready at http://127.0.0.1:'+server.address().port));
-server.on('error', error => { clearInterval(monitor); console.error(error.message); process.exitCode = 1; });
+server.on('error', error => { clearInterval(monitor);if(previewMonitor)clearInterval(previewMonitor);console.error(error.message); process.exitCode = 1; });
 return server;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) startLibrary();
