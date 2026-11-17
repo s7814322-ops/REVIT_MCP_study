@@ -8,12 +8,14 @@
   <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js"}}</script>
   <script defer src="catalog.js"></script>
   <script defer src="app.js"></script>
+  <script defer src="settings.js"></script>
 </head>
 <body>
   <header class="topbar">
     <a class="brand" href="#" aria-label="元件圖書館首頁"><span class="brand-icon">▥</span><span>ABBY <b>LIBRARY</b></span></a>
     <span class="divider"></span><span class="library-label">Revit 元件圖書館</span>
     <span class="local-badge"><i></i> 本機資料庫</span>
+    <button id="open-settings" class="settings-trigger">路徑設定</button>
   </header>
   <div class="layout">
     <aside class="sidebar">
@@ -65,6 +67,17 @@
       <p class="detail-foot">切換族群類型會同步更新參數與對應 3D；未成功匯出的類型會顯示原因。</p>
     </div>
   </aside>
+  <dialog id="path-settings" aria-labelledby="settings-title">
+    <form id="settings-form">
+      <div class="settings-heading"><h2 id="settings-title">元件路徑設定</h2><button type="button" id="close-settings" aria-label="關閉路徑設定">×</button></div>
+      <p>只需設定一個元件根目錄，網頁會依資料夾內既有的分類位置讀取元件。</p>
+      <label for="settings-root">元件根目錄</label><input id="settings-root" type="text" placeholder="例如 E:/BIM/元件" autocomplete="off" required>
+      <p id="settings-environment" hidden></p>
+      <p class="settings-note">儲存後立即重新讀取，無需重啟。不會修改原始 RFA。</p>
+      <p id="settings-status" role="status" aria-live="polite"></p>
+      <div class="settings-actions"><button type="button" id="cancel-settings" class="secondary">關閉</button><button id="save-settings" type="submit" class="primary">儲存並重新讀取</button></div>
+    </form>
+  </dialog>
   <div id="toast" role="status" class="toast" hidden></div>
 </body>
 </html>
