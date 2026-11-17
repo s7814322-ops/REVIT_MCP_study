@@ -6,6 +6,7 @@ try {
     if ($health.application -eq 'abby-door-library' -and $health.sync) { if (!$NoBrowser) { Start-Process $url }; exit }
 } catch {}
 $candidates = @(
+    (Join-Path $PSScriptRoot 'runtime\node.exe'),
     (Join-Path $env:LOCALAPPDATA 'AbbyMCP\tools\node\node.exe'),
     (Join-Path $env:USERPROFILE '.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe')
 )
