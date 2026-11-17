@@ -415,4 +415,4 @@ with dryRun=false and apply=true. Legacy behavior remains unchanged.
 
 ## Local family library (preview)
 
-The [local Revit family library](family-library/README.md) adds searchable family previews and direct type loading/placement. Each computer configures its own source root; RFA files, catalogs and preview assets remain private. Install through `scripts/install-addon.ps1 -FamilyLibraryRoot <path>`. Revit placement and the 2026 build still require validation before release.
+The [local Revit family library](family-library/README.md) adds searchable family previews and direct type loading/placement. Each computer configures one source root; RFA files, catalogs and preview assets remain private. Abby channel releases include the web program and WebView2 x64 loader for Revit 2024–2026. After an update, Revit startup deploys the web program while preserving private settings and previews. Manual installation also supports `scripts/install-addon.ps1 -FamilyLibraryRoot <path>`.
