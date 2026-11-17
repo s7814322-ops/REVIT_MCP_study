@@ -30,8 +30,9 @@ namespace RevitMCP.FamilyLibrary {
  public class Catalog {public Item[] items{get;set;} }
  public class Request {public string action{get;set;} public string id{get;set;} public string typeName{get;set;} public string sourceHash{get;set;} }
  public static class LibraryRibbon {
-  public static void Initialize(RibbonPanel panel) {
-   panel.AddItem(new PushButtonData("AbbyFamilyLibrary","元件圖書館",typeof(LibraryRibbon).Assembly.Location,typeof(OpenLibrary).FullName){ToolTip="搜尋並直接載入元件至目前專案；原始 RFA 不修改。"});
+  public static void Initialize(UIControlledApplication app) {
+   var panel=app.CreateRibbonPanel("ABBY 元件庫");
+   panel.AddItem(new PushButtonData("AbbyFamilyLibrary","元件\n圖書館",typeof(LibraryRibbon).Assembly.Location,typeof(OpenLibrary).FullName){ToolTip="ABBY 元件圖書館",LongDescription="搜尋元件、查看 3D 與參數，選擇族群類型後直接載入專案並點選放置。原始 RFA 保持不變。",LargeImage=RibbonIcon.Create(),Image=RibbonIcon.Create()});
   }
   public static void Shutdown(){if(OpenLibrary.Window!=null)OpenLibrary.Window.Close();}
  }
