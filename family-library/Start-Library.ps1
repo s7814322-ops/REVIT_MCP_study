@@ -1,10 +1,16 @@
 param([switch]$NoBrowser)
 $ErrorActionPreference = 'Stop'
 $url = 'http://127.0.0.1:4318'
+$marker=Join-Path $PSScriptRoot '.program-version'
+$programVersion=if(Test-Path -LiteralPath $marker){[IO.File]::ReadAllText($marker).Trim()}else{'development'}
 try {
     $health = Invoke-RestMethod ($url + '/api/health') -TimeoutSec 2
-    if ($health.application -eq 'abby-door-library' -and $health.sync) { if (!$NoBrowser) { Start-Process $url }; exit }
+    if ($health.application -eq 'abby-door-library' -and $health.sync -and $health.programVersion -eq $programVersion) { if (!$NoBrowser) { Start-Process $url }; exit }
 } catch {}
+$serverPath=Join-Path $PSScriptRoot 'server.mjs'
+foreach($process in Get-CimInstance Win32_Process -Filter "Name='node.exe'"){
+    if($process.CommandLine -and $process.CommandLine.Contains('"'+$serverPath+'"')){Stop-Process -Id $process.ProcessId -ErrorAction Stop}
+}
 $candidates = @(
     (Join-Path $PSScriptRoot 'runtime\node.exe'),
     (Join-Path $env:LOCALAPPDATA 'AbbyMCP\tools\node\node.exe'),
@@ -21,7 +27,7 @@ for ($attempt = 0; $attempt -lt 20; $attempt++) {
     Start-Sleep -Milliseconds 500
     try {
         $health = Invoke-RestMethod ($url + '/api/health') -TimeoutSec 1
-        if ($health.application -eq 'abby-door-library') { if (!$NoBrowser) { Start-Process $url }; exit }
+        if ($health.application -eq 'abby-door-library' -and $health.programVersion -eq $programVersion) { if (!$NoBrowser) { Start-Process $url }; exit }
     } catch {}
 }
 throw 'The local server did not start. Check server-error.log.'
