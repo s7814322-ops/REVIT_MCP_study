@@ -11,7 +11,15 @@ export const defaultSources=[
 export function resolveSources(config,env=process.env) {
  const base=env.ABBY_FAMILY_ROOT || config.familyRoot;
  if(!base || !path.isAbsolute(base))throw Error('請設定 sources.local.json 的 familyRoot 為元件根目錄的完整路徑。');
- return defaultSources.map(source=>({...source,path:path.resolve(base,source.relativePath)}));
+ const definitions=[...defaultSources,...(config.additionalSources || [])];
+ const ids=new Set();
+ return definitions.map(source=>{
+  if(!source.id || ids.has(source.id) || typeof source.relativePath!=='string')throw Error('元件來源設定不正確。');
+  ids.add(source.id);
+  const location=path.resolve(base,source.relativePath),basePath=path.resolve(base);
+  if(!location.startsWith(basePath+path.sep))throw Error('元件來源必須位於元件根目錄內。');
+  return {...source,path:location};
+ });
 }
 export function loadSources(configPath=path.join(root,'sources.local.json')) {
  const config=fs.existsSync(configPath)?JSON.parse(fs.readFileSync(configPath,'utf8').replace(/^\uFEFF/,'')):{};
