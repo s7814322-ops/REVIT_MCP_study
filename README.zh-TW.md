@@ -410,3 +410,7 @@ cadUnits；預設預覽，dryRun=false 且 apply=true 才建立。找不到配�
 ### Abby: 梁柱封閉區域批次建板
 使用 list_floor_types 選擇現有類型，再以 create_floors_from_framing_regions 預覽梁／梁柱內側封閉區域並批次建立樓板。含柱洞、重疊跳過、預覽驗證與交易回滾。詳見 [使用方式與限制](docs/ABBY-FRAMING-FLOORS.md)。
 
+
+## 本機元件圖書館（預覽功能）
+
+新增[可攜式元件庫與安裝說明](family-library/README.md)：各電腦可指定自己的元件根目錄，也可分別設定門、窗、職安衛及無障礙廁所路徑。搜尋、預覽後可將選定類型直接載入專案並點選放置。RFA、catalog 與預覽資產不進公開 GitHub；完整 Revit 放置及 2026 建置仍待驗證。
