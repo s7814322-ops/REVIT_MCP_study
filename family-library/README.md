@@ -11,11 +11,15 @@
 ./scripts/install-addon.ps1 -Version 2025 -NonInteractive -FamilyLibraryRoot 'E:\BIM\元件'
 ```
 
-元件庫會安裝到目前使用者的 `%LOCALAPPDATA%\AbbyMCP\door-library`。各機的 `sources.local.json` 不進 GitHub，也不會被程式更新覆蓋。安裝不修改來源 RFA。現有自動更新發布流程尚未包含元件庫套件，合併本 PR 不會自動替其他電腦安裝。
+元件庫會安裝到目前使用者的 `%LOCALAPPDATA%\AbbyMCP\door-library`。各機的 `sources.local.json` 不進 GitHub，也不會被程式更新覆蓋。安裝不修改來源 RFA。
+
+已安裝 Abby 自動更新的電腦可直接接收 `my-revit-tool` 的新發布版本。更新 ZIP 內含網頁程式、Three.js 與各年度 WebView2 原生載入器；更新完成後啟動 Revit，會從已驗證的發布目錄佈署網頁程式，保留設定、catalog 及私人預覽。首次尚無設定時，按「增益集 → ABBY 元件庫 → 元件圖書館」，再使用「元件路徑」選定本機根目錄。
+
+程式更新不公開傳送 RFA 或私人 3D 資料。已匯入的可攜預覽會保留；新電腦需另外私下匯入一次預覽套件。若先前已裝獨立 ABBY 元件庫外掛，整合版會保留該註冊並重用其共用網頁，避免重複入口。
 
 3. 重啟 Revit，在「增益集 → ABBY 元件庫 → 元件圖書館」搜尋元件，選擇族群類型，按「載入並放置」，回到專案點選位置或宿主；Esc 結束。使用工作副本載入，來源不修改。舊版族群只在專案內升級；高於目前 Revit 版本的族群不可載入。已有同名族群／類型時，提示使用專案現有版本，不自動覆寫。
 
-目前實機安裝目標為 2024、2025；2026 整合仍需建置與實測。較早年度按鈕會提示不支援。各類元件仍需符合 Revit 原生放置規則。
+發布版已對 Revit 2024、2025、2026 執行完整建置。較早年度按鈕會提示不支援。各類元件仍需符合 Revit 原生放置規則；建置與發布測試不代表每種族群都已在另一台電腦實際放置驗證。
 
 ## 路徑設定
 
@@ -43,7 +47,7 @@ node portable-previews.mjs export 'E:\Transfer\family-preview-pack'
 
 ## 驗證
 
-`node --test family-library/config.test.mjs` 驗證跨電腦根目錄、分類覆寫與可攜預覽的版本範圍。編譯成功不等同 Revit 實際放置驗證；請在空白測試專案先確認嵌入網頁、預覽、指定類型及宿主放置。
+`node --test family-library/config.test.mjs` 驗證單一根目錄及可攜預覽版本範圍。`tests/abby-family-library.ps1` 驗證發布程式的雜湊、既有私人設定／預覽保留、缺檔修復、拒絕不安全項目及舊更新器的首次佈署。帶入 `-Package <發布ZIP>` 可檢查三個年度的原生載入器與網頁資源。PR 的 Windows CI 會建置完整三年度發布包，並執行更新安全、MCP 合約與 QA/QC。編譯成功不等同 Revit 實際放置驗證；請在空白測試專案先確認嵌入網頁、預覽、指定類型及宿主放置。
 
 ## 最新可攜匯入驗證
 
