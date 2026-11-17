@@ -394,7 +394,11 @@ async function checkSync() {
       applyCatalog(await response.json());
     }
     $('#sync-status').textContent = health.sync.state === 'error' ? '同步暫停，等待檔案可讀取' : ['settling','updating','checking'].includes(health.sync.state) ? '偵測到變動，更新中…' : '自動同步已啟用';
-    $('#sync-status').title = health.sync.error || '資料夾變動後會自動更新；3D 需要另外匯出。';
+    const previewSync=health.previewSync;
+    if(previewSync?.state==='watching') $('#sync-status').textContent += ' · OneDrive 預覽同步中';
+    else if(previewSync?.state==='waiting') $('#sync-status').textContent += ' · 等待預覽檔案同步完整';
+    else if(previewSync?.state==='error') $('#sync-status').textContent += ' · 預覽同步暫停，將自動重試';
+    $('#sync-status').title = health.sync.error || previewSync?.error || (previewSync?.folder ? '共用預覽：'+previewSync.folder : '資料夾變動後會自動更新；3D 需要另外匯出。');
   } catch { $('#sync-status').textContent = '連線中斷，正在重新連線…'; }
   finally { syncBusy = false; }
 }
