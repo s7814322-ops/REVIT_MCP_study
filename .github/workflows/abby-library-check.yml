@@ -12,6 +12,8 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
+      - name: Preserve generated-page line endings
+        run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
@@ -25,7 +27,7 @@ jobs:
           node scripts/abby/check-public-source.cjs
           if ($LASTEXITCODE -ne 0) { throw 'Public source check failed' }
           ./scripts/abby/New-AbbyPackage.ps1 -Version abby-my-revit-tool-prcheck
-          node --test family-library/config.test.mjs
+          node --test family-library/*.test.mjs
           if ($LASTEXITCODE -ne 0) { throw 'Library configuration tests failed' }
           ./tests/abby-family-library.ps1 -Package output/releases/Abby-MCP-abby-my-revit-tool-prcheck.zip
           ./tests/abby-update-safety.ps1
