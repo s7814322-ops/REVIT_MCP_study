@@ -11,14 +11,11 @@ export const defaultSources=[
 export function resolveSources(config,env=process.env) {
  const base=env.ABBY_FAMILY_ROOT || config.familyRoot;
  if(!base || !path.isAbsolute(base))throw Error('請設定 sources.local.json 的 familyRoot 為元件根目錄的完整路徑。');
- return defaultSources.map(source=>{
-  const override=config.paths?.[source.id];
-  if(override && !path.isAbsolute(override))throw Error('分類路徑必須是完整路徑：'+source.id);
-  return {...source,path:override || path.resolve(base,source.relativePath)};
- });
+ return defaultSources.map(source=>({...source,path:path.resolve(base,source.relativePath)}));
 }
 export function loadSources(configPath=path.join(root,'sources.local.json')) {
  const config=fs.existsSync(configPath)?JSON.parse(fs.readFileSync(configPath,'utf8').replace(/^\uFEFF/,'')):{};
  return resolveSources(config);
 }
-export const librarySources=loadSources();
+// The settings page must also work before the first source folder is configured.
+export const librarySources=(()=>{try{return loadSources();}catch{return [];}})();
