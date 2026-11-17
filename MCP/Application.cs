@@ -129,7 +129,7 @@ namespace RevitMCP
                 cameraManagerButtonData.ToolTip = "顯示相機管理停靠面板：檢視所有透視相機的離樓板高度、在平面上的位置，並可編輯、複製、匯出";
                 panel.AddItem(cameraManagerButtonData);
 
-                FamilyLibrary.LibraryRibbon.Initialize(panel);
+                FamilyLibrary.LibraryRibbon.Initialize(application);
 
                 // 初始化 ExternalEventManager (必須在 UI 執行緒建立)
                 _ = ExternalEventManager.Instance;
