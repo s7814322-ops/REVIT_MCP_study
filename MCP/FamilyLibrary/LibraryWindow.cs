@@ -31,6 +31,11 @@ namespace RevitMCP.FamilyLibrary {
  public class Request {public string action{get;set;} public string id{get;set;} public string typeName{get;set;} public string sourceHash{get;set;} }
  public static class LibraryRibbon {
   public static void Initialize(UIControlledApplication app) {
+   try{LibraryDeployment.InstallCurrent(Data.Root);}catch(Exception error){RevitMCP.Core.Logger.Error("Family library program deployment failed",error);}
+   // An earlier standalone ABBY install may still own this ribbon entry.
+   // Leave its registration untouched, while still updating its shared web program.
+   var legacy=Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),"Autodesk","Revit","Addins",app.ControlledApplication.VersionNumber,"AbbyFamilyLibrary.addin");
+   if(File.Exists(legacy))try{var xml=XDocument.Load(legacy);var entry=xml.Root.Element("AddIn");if(entry!=null && (string)entry.Element("FullClassName")=="AbbyLibrary.App" && (string)entry.Element("VendorId")=="ABBY")return;}catch{}
    var panel=app.CreateRibbonPanel("ABBY 元件庫");
    panel.AddItem(new PushButtonData("AbbyFamilyLibrary","元件\n圖書館",typeof(LibraryRibbon).Assembly.Location,typeof(OpenLibrary).FullName){ToolTip="ABBY 元件圖書館",LongDescription="搜尋元件、查看 3D 與參數，選擇族群類型後直接載入專案並點選放置。原始 RFA 保持不變。",LargeImage=RibbonIcon.Create(),Image=RibbonIcon.Create()});
   }
@@ -41,6 +46,7 @@ namespace RevitMCP.FamilyLibrary {
   public static LibraryWindow Window;
   public Result Execute(ExternalCommandData data,ref string message,ElementSet elements) {
    try {
+    LibraryDeployment.InstallCurrent(Data.Root);
     if(int.Parse(data.Application.Application.VersionNumber)<2024){TaskDialog.Show("ABBY 元件庫","元件庫整合目前支援 Revit 2024 或更新版本。");return Result.Cancelled;}
     if(Window==null){var handler=new PlaceHandler();var external=ExternalEvent.Create(handler);Window=new LibraryWindow(handler,external,data.Application.Application.VersionNumber);new WindowInteropHelper(Window).Owner=data.Application.MainWindowHandle;Window.Closed+=(s,e)=>{external.Dispose();Window=null;};}
     Window.Show();Window.Activate();return Result.Succeeded;
@@ -59,6 +65,9 @@ namespace RevitMCP.FamilyLibrary {
    try{
     // The launcher only starts the loopback service; no separate browser or download.
     Process.Start(new ProcessStartInfo("powershell.exe","-NoProfile -ExecutionPolicy Bypass -File \""+Path.Combine(Data.Root,"Start-Library.ps1")+"\" -NoBrowser"){UseShellExecute=false,CreateNoWindow=true,WindowStyle=ProcessWindowStyle.Hidden});
+    var assemblyFolder=Path.GetDirectoryName(typeof(LibraryRibbon).Assembly.Location);
+    var loaderFolder=File.Exists(Path.Combine(assemblyFolder,"WebView2Loader.dll"))?assemblyFolder:Path.Combine(assemblyFolder,"runtimes","win-x64","native");
+    CoreWebView2Environment.SetLoaderDllFolderPath(loaderFolder);
     var env=await CoreWebView2Environment.CreateAsync(null,Path.Combine(Data.Root,"revit","webview-profile-"+version));
     await web.EnsureCoreWebView2Async(env);
     web.CoreWebView2.Settings.AreHostObjectsAllowed=false;
@@ -103,7 +112,9 @@ namespace RevitMCP.FamilyLibrary {
     if(hash!=item.sourceHash)throw new Exception("來源檔案已更新，請等待網頁同步後再試。");
     using(var info=BasicFileInfo.Extract(copy))if(info.Format!=item.revitVersion)throw new Exception("元件實際版本與清單不同，已停止載入。");
     var familyName=xml.Root.Elements().First(x=>x.Name.LocalName=="title").Value.Trim();
-    FamilySymbol symbol=new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().FirstOrDefault(s=>s.Family.Name==familyName&&s.Name==typeName);
+    var familyNames=new[]{familyName,Path.GetFileNameWithoutExtension(item.path)};
+    bool unnamed=names.Length==1&&string.IsNullOrWhiteSpace(names[0])&&typeName=="未命名類型";
+    FamilySymbol symbol=new FilteredElementCollector(doc).OfClass(typeof(FamilySymbol)).Cast<FamilySymbol>().FirstOrDefault(s=>familyNames.Contains(s.Family.Name)&&(s.Name==typeName || unnamed&&string.IsNullOrWhiteSpace(s.Name)));
     if(symbol!=null){var dialog=new TaskDialog("ABBY 元件庫"){MainInstruction="專案已有同名族群與類型",MainContent="將使用專案現有的「"+familyName+" : "+typeName+"」，不覆寫其參數或外觀。",CommonButtons=TaskDialogCommonButtons.Ok|TaskDialogCommonButtons.Cancel};if(dialog.Show()!=TaskDialogResult.Ok)return;}
     using(var tx=new Transaction(doc,"ABBY 載入元件："+Path.GetFileNameWithoutExtension(item.path))){
      tx.Start();if(symbol==null){
