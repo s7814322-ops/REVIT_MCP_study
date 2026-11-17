@@ -312,6 +312,8 @@ function Install-ToVersion {
         return [pscustomobject]@{ Version = $RevitYear; Status = 'SKIP'; Reason = 'no build output' }
     }
     $srcDlls = @(Get-ChildItem -Path $srcDir -Filter '*.dll' -File -ErrorAction SilentlyContinue)
+    $webViewLoader=Join-Path $srcDir 'runtimes\win-x64\native\WebView2Loader.dll'
+    if(Test-Path -LiteralPath $webViewLoader){$srcDlls+=Get-Item -LiteralPath $webViewLoader}
     if ($srcDlls.Count -eq 0) {
         Write-Host "  [略過] $srcDir 內沒有任何 DLL" -ForegroundColor Yellow
         return [pscustomobject]@{ Version = $RevitYear; Status = 'SKIP'; Reason = 'build output empty' }
