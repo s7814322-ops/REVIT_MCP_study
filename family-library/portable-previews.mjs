@@ -10,6 +10,9 @@ if(fs.existsSync(target)&&fs.readdirSync(target).length)throw Error('Destination
 if(target===root || target.startsWith(path.join(root,'dist')+path.sep))throw Error('Choose a separate output folder.');
 fs.mkdirSync(target,{recursive:true});
 const families=new Map(JSON.parse(fs.readFileSync(path.join(root,'dist/catalog.json'))).items.map(item=>[item.id,item]));
+const localConfig=JSON.parse(fs.readFileSync(path.join(root,'sources.local.json'),'utf8').replace(/^\uFEFF/,''));
+const additionalSources=(localConfig.additionalSources || []).map(({id,label,category,relativePath,recursive})=>({id,label,category,relativePath,recursive}));
+for(const source of additionalSources)if(path.isAbsolute(source.relativePath)||source.relativePath.split(/[\\/]/).includes('..'))throw Error('Preview source must be relative to the family root.');
 for(const name of ['models-index.json','type-models-index.json','rendered-previews.json']){
  const source=path.join(root,name);if(!fs.existsSync(source))continue;
  const result={};
@@ -27,5 +30,5 @@ for(const name of ['models-index.json','type-models-index.json','rendered-previe
  }
  fs.writeFileSync(path.join(target,name),JSON.stringify(result,null,2));
 }
-fs.writeFileSync(path.join(target,'preview-pack.json'),JSON.stringify({schema:1,created:new Date().toISOString(),note:'Private preview data; do not commit to a public repository.'},null,2));
+fs.writeFileSync(path.join(target,'preview-pack.json'),JSON.stringify({schema:2,created:new Date().toISOString(),additionalSources,note:'Private preview data; do not commit to a public repository.'},null,2));
 console.log('Preview pack exported to '+target);
