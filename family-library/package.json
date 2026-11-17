@@ -1,0 +1,14 @@
+{
+  "name": "abby-local-door-library",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "catalog": "node build-catalog.mjs",
+    "prepare": "node prepare-web.mjs"
+  },
+  "dependencies": {
+    "three": "0.187.0"
+  }
+}
