@@ -51,6 +51,9 @@ test('bidirectional previews use local roots, validate blobs and source bytes, a
   transfer(a,c);await c.engine.tick();
   index=read(path.join(c.metadataRoot,'type-models-index.json'));assert.equal(index[id].types[0].name,'1500','an export completed during import must not be overwritten');
   await c.engine.tick();index=read(path.join(c.metadataRoot,'type-models-index.json'));assert.deepEqual(index[id].types.map(x=>x.name),['1200','1500','900']);
+  const d=machine('D');d.item.sourceHash=hash('previous RFA revision');exportType(d,'1800',1.8);
+  await d.engine.tick();assert.equal(d.engine.status.published,0);
+  d.item.sourceHash=sourceHash;await d.engine.tick();assert.equal(d.engine.status.published,1,'publish when source scanning catches up with an already completed export');
   const records=fs.readdirSync(path.join(a.shared,'records',id)).map(name=>fs.readFileSync(path.join(a.shared,'records',id,name),'utf8')).join('');assert.ok(!records.includes(a.metadataRoot));assert.ok(!records.includes(a.familyRoot));
  }finally{if(previous===undefined)delete process.env.ABBY_FAMILY_ROOT;else process.env.ABBY_FAMILY_ROOT=previous;fs.rmSync(temp,{recursive:true,force:true});}
 });
