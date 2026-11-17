@@ -4,7 +4,7 @@ if(!(Test-Path -LiteralPath $FamilyRoot -PathType Container)){throw 'FamilyRoot 
 $dest=[IO.Path]::GetFullPath($Destination)
 $null=New-Item -ItemType Directory -Path $dest -Force
 if($dest -ne $PSScriptRoot){
- foreach($name in @('sources.mjs','source-files.mjs','cfb.mjs','version-policy.mjs','server.mjs','settings.mjs','build-catalog.mjs','prepare-web.mjs','portable-previews.mjs','package.json','package-lock.json','Start-Library.ps1','Start-Library.cmd','sources.example.json')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $dest -Force}
+ foreach($name in @('sources.mjs','source-files.mjs','cfb.mjs','version-policy.mjs','server.mjs','settings.mjs','build-catalog.mjs','prepare-web.mjs','portable-previews.mjs','import-previews.mjs','package.json','package-lock.json','Start-Library.ps1','Start-Library.cmd','sources.example.json')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $dest -Force}
  Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'web') -Destination $dest -Recurse -Force
 }
 $configPath=Join-Path $dest 'sources.local.json'
@@ -18,8 +18,7 @@ try{
  if($PreviewPack){
   $pack=[IO.Path]::GetFullPath($PreviewPack)
   if(!(Test-Path -LiteralPath (Join-Path $pack 'preview-pack.json'))){throw 'Not a preview pack'}
-  foreach($name in @('models-index.json','type-models-index.json','rendered-previews.json')){if(Test-Path -LiteralPath (Join-Path $pack $name)){Copy-Item -LiteralPath (Join-Path $pack $name) -Destination $dest -Force}}
-  foreach($dir in Get-ChildItem -LiteralPath (Join-Path $pack 'dist') -Directory){Copy-Item -LiteralPath $dir.FullName -Destination (Join-Path $dest 'dist') -Recurse -Force}
+  & node.exe import-previews.mjs $pack;if($LASTEXITCODE -ne 0){throw 'Preview import failed'}
  }
  & node.exe build-catalog.mjs;if($LASTEXITCODE -ne 0){throw 'Catalog build failed'}
 }finally{Pop-Location}
