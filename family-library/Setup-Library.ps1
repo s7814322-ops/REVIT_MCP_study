@@ -4,7 +4,7 @@ if(!(Test-Path -LiteralPath $FamilyRoot -PathType Container)){throw 'FamilyRoot 
 $dest=[IO.Path]::GetFullPath($Destination)
 $null=New-Item -ItemType Directory -Path $dest -Force
 if($dest -ne $PSScriptRoot){
- foreach($name in @('sources.mjs','source-files.mjs','cfb.mjs','version-policy.mjs','server.mjs','build-catalog.mjs','prepare-web.mjs','portable-previews.mjs','package.json','package-lock.json','Start-Library.ps1','Start-Library.cmd','sources.example.json')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $dest -Force}
+ foreach($name in @('sources.mjs','source-files.mjs','cfb.mjs','version-policy.mjs','server.mjs','settings.mjs','build-catalog.mjs','prepare-web.mjs','portable-previews.mjs','package.json','package-lock.json','Start-Library.ps1','Start-Library.cmd','sources.example.json')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination $dest -Force}
  Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'web') -Destination $dest -Recurse -Force
 }
 $configPath=Join-Path $dest 'sources.local.json'
