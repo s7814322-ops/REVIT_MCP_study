@@ -6,12 +6,13 @@ import {fileURLToPath} from 'node:url';
 import {buildCatalog, sourceFolder} from './build-catalog.mjs';
 import {librarySources} from './sources.mjs';
 import {listFamilyFiles} from './source-files.mjs';
+import {createSettings} from './settings.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 export function startLibrary({source, sources = source ? [{id:'doors',label:path.basename(source),path:source}] : librarySources,
   dist = path.join(root,'dist'), metadataRoot = root,
-  port = 4318, pollMs = 2000, settleMs = 1200} = {}) {
-let catalog = JSON.parse(fs.readFileSync(path.join(dist, 'catalog.json'), 'utf8'));
+  port = 4318, pollMs = 2000, settleMs = 1200,configPath=path.join(metadataRoot,'sources.local.json')} = {}) {
+let catalog = fs.existsSync(path.join(dist,'catalog.json')) ? JSON.parse(fs.readFileSync(path.join(dist, 'catalog.json'), 'utf8')) : {items:[],sources:[],source:'',generated:new Date().toISOString(),revision:'unconfigured'};
 let families = new Map(catalog.items.map(item => [item.id, item]));
 let applied = null, candidate = null, candidateSince = 0;
 let sync = {state:'checking',lastChecked:null,error:null,pendingIds:[]};
@@ -58,14 +59,27 @@ refresh(true);
 const monitor=setInterval(refresh,pollMs);
 monitor.unref();
 const mimeTypes = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.png':'image/png','.json':'application/json; charset=utf-8'};
+const settings=createSettings({configPath,dist,metadataRoot,getSources:()=>sources,applySources:(next,updated)=>{
+ sources=next;catalog=updated;families=new Map(updated.items.map(item=>[item.id,item]));applied=fingerprint();candidate=null;
+ sync={state:'watching',lastChecked:new Date().toISOString(),error:null,pendingIds:[]};
+}});
 const server = http.createServer((request, response) => {
-  if (!['GET','HEAD'].includes(request.method)) {
-    response.writeHead(405).end();
-    return;
-  }
+  const expectedHost='127.0.0.1:'+server.address().port;
+  if(request.headers.host!==expectedHost){response.writeHead(403).end();return;}
   let route;
   try { route = decodeURIComponent(new URL(request.url, 'http://127.0.0.1').pathname); }
   catch { response.writeHead(400).end(); return; }
+  const json=(status,value)=>{response.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});response.end(request.method==='HEAD'?undefined:JSON.stringify(value));};
+  if(route==='/api/settings'){
+   if(['GET','HEAD'].includes(request.method)){json(200,settings.snapshot());return;}
+   if(request.method!=='POST'){json(405,{error:'Method not allowed'});return;}
+   if(request.headers.origin!=='http://'+expectedHost || request.headers['x-abby-config-token']!==settings.token || !/^application\/json(?:;|$)/i.test(request.headers['content-type']||'')){json(403,{error:'請從本機網頁重新開啟路徑設定。'});return;}
+   let body='',size=0;let ended=false;
+   request.on('data',chunk=>{size+=chunk.length;if(size>65536){if(!ended){ended=true;json(413,{error:'設定內容過大。'});}return;}body+=chunk;});
+   request.on('end',()=>{if(ended)return;try{json(200,settings.save(JSON.parse(body)));}catch(error){json(400,{error:error.message});}});
+   return;
+  }
+  if (!['GET','HEAD'].includes(request.method)) {response.writeHead(405).end();return;}
   if (route === '/api/health') {
     response.writeHead(200, {'Content-Type':'application/json','Cache-Control':'no-store'});
     response.end(JSON.stringify({application:'abby-door-library', families:families.size,revision:publicCatalog().revision,sync}));
