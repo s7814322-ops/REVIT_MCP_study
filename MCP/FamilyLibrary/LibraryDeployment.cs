@@ -13,7 +13,7 @@ namespace RevitMCP.FamilyLibrary {
   class InstalledState {public string Version{get;set;}}
   static string Hash(string file){using(var sha=SHA256.Create())using(var input=File.OpenRead(file))return BitConverter.ToString(sha.ComputeHash(input)).Replace("-","").ToLowerInvariant();}
   static bool Allowed(string file){
-   string[] roots={"sources.mjs","source-files.mjs","cfb.mjs","version-policy.mjs","server.mjs","settings.mjs","build-catalog.mjs","portable-previews.mjs","import-previews.mjs","Start-Library.ps1","Start-Library.cmd"};
+   string[] roots={"sources.mjs","source-files.mjs","cfb.mjs","version-policy.mjs","server.mjs","settings.mjs","preview-sync.mjs","build-catalog.mjs","portable-previews.mjs","import-previews.mjs","Start-Library.ps1","Start-Library.cmd"};
    string[] assets={"dist/index.html","dist/app.js","dist/settings.js","dist/styles.css","dist/viewer3d.js","dist/vendor/three/three.module.js","dist/vendor/three/three.core.js","dist/vendor/three/OrbitControls.js","dist/vendor/three/LICENSE"};
    return roots.Contains(file)||assets.Contains(file);
   }
