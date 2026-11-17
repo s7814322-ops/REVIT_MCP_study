@@ -14,6 +14,8 @@ export function startLibrary({source, sources = source ? [{id:'doors',label:path
   port = 4318, pollMs = 2000, settleMs = 1200,configPath=path.join(metadataRoot,'sources.local.json')} = {}) {
 let catalog = fs.existsSync(path.join(dist,'catalog.json')) ? JSON.parse(fs.readFileSync(path.join(dist, 'catalog.json'), 'utf8')) : {items:[],sources:[],source:'',generated:new Date().toISOString(),revision:'unconfigured'};
 let families = new Map(catalog.items.map(item => [item.id, item]));
+const marker=path.join(metadataRoot,'.program-version');
+const programVersion=fs.existsSync(marker)?fs.readFileSync(marker,'utf8').trim():'development';
 let applied = null, candidate = null, candidateSince = 0;
 let sync = {state:'checking',lastChecked:null,error:null,pendingIds:[]};
 function markPending() {
@@ -74,15 +76,15 @@ const server = http.createServer((request, response) => {
    if(['GET','HEAD'].includes(request.method)){json(200,settings.snapshot());return;}
    if(request.method!=='POST'){json(405,{error:'Method not allowed'});return;}
    if(request.headers.origin!=='http://'+expectedHost || request.headers['x-abby-config-token']!==settings.token || !/^application\/json(?:;|$)/i.test(request.headers['content-type']||'')){json(403,{error:'請從本機網頁重新開啟路徑設定。'});return;}
-   let body='',size=0;let ended=false;
-   request.on('data',chunk=>{size+=chunk.length;if(size>65536){if(!ended){ended=true;json(413,{error:'設定內容過大。'});}return;}body+=chunk;});
-   request.on('end',()=>{if(ended)return;try{json(200,settings.save(JSON.parse(body)));}catch(error){json(400,{error:error.message});}});
+   const chunks=[];let size=0,ended=false;
+   request.on('data',chunk=>{size+=chunk.length;if(size>65536){if(!ended){ended=true;json(413,{error:'設定內容過大。'});}return;}chunks.push(chunk);});
+   request.on('end',()=>{if(ended)return;try{json(200,settings.save(JSON.parse(Buffer.concat(chunks).toString('utf8'))));}catch(error){json(400,{error:error.message});}});
    return;
   }
   if (!['GET','HEAD'].includes(request.method)) {response.writeHead(405).end();return;}
   if (route === '/api/health') {
     response.writeHead(200, {'Content-Type':'application/json','Cache-Control':'no-store'});
-    response.end(JSON.stringify({application:'abby-door-library', families:families.size,revision:publicCatalog().revision,sync}));
+    response.end(JSON.stringify({application:'abby-door-library', programVersion,families:families.size,revision:publicCatalog().revision,sync}));
     return;
   }
   if (route === '/api/catalog' || route === '/catalog.json' || route === '/catalog.js') {
