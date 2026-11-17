@@ -50,6 +50,7 @@ export function createPreviewSync({metadataRoot,configPath,getCatalog,onSourcesC
    const indexes=indexesAt(metadataRoot),before=digest(stable(indexes));
    const catalog=getCatalog(),families=new Map(catalog.items.map(item=>[item.id,item]));
    const definitions=new Map((catalog.sources||[]).map(source=>[source.id,source]));
+   const catalogKey=digest(stable({sources:catalog.sources,items:catalog.items.map(item=>[item.id,item.sourceHash,item.revitVersion])}));
    async function publishBlob(url){
     const relative=url.split('?')[0],file=path.resolve(metadataRoot,'dist',relative);
     if(!file.startsWith(path.join(metadataRoot,'dist')+path.sep))throw Error('Invalid local preview asset.');
@@ -59,7 +60,7 @@ export function createPreviewSync({metadataRoot,configPath,getCatalog,onSourcesC
     return blob;
    }
    let publishPending=false;
-   if(before!==state.indexes || state.publishPending){
+   if(before!==state.indexes || catalogKey!==state.catalog || state.publishPending){
     for(const item of families.values()){
      try{
       const definition=definitions.get(item.sourceId);if(!definition?.relativePath)continue;
@@ -127,7 +128,7 @@ export function createPreviewSync({metadataRoot,configPath,getCatalog,onSourcesC
    // Retry against its fresh indexes instead of overwriting that export.
    if(digest(stable(indexesAt(metadataRoot)))!==before){state.applied={};state.indexes=null;return;}
    if(indexChanged)for(const name of indexNames)atomicJson(path.join(metadataRoot,name),indexes[name]);
-   state.indexes=digest(stable(indexes));state.publishPending=publishPending;atomicJson(stateFile,state);
+   state.indexes=digest(stable(indexes));state.catalog=catalogKey;state.publishPending=publishPending;atomicJson(stateFile,state);
    status.state=status.waiting?'waiting':'watching';
   }catch(error){status.state='error';status.error=error.message;}
   finally{busy=false;}
