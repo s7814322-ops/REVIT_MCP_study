@@ -1,5 +1,17 @@
 param([switch]$NoBrowser)
 $ErrorActionPreference = 'Stop'
+# Start this computer's local service at sign-in; no shared machine paths.
+$startup=[Environment]::GetFolderPath('Startup')
+if($startup){
+ $shell=New-Object -ComObject WScript.Shell
+ $shortcut=$shell.CreateShortcut((Join-Path $startup 'ABBY 元件庫同步.lnk'))
+ $shortcut.TargetPath=Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+ $shortcut.Arguments='-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "'+(Join-Path $PSScriptRoot 'Start-Library.ps1')+'" -NoBrowser'
+ $shortcut.WorkingDirectory=$PSScriptRoot
+ $shortcut.WindowStyle=7
+ $shortcut.Description='ABBY 元件庫與 OneDrive 預覽自動同步'
+ $shortcut.Save()
+}
 $url = 'http://127.0.0.1:4318'
 $marker=Join-Path $PSScriptRoot '.program-version'
 $programVersion=if(Test-Path -LiteralPath $marker){[IO.File]::ReadAllText($marker).Trim()}else{'development'}
