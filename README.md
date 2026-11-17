@@ -412,3 +412,7 @@ with dryRun=false and apply=true. Legacy behavior remains unchanged.
 ### Abby: 梁柱封閉區域批次建板
 使用 list_floor_types 選擇現有類型，再以 create_floors_from_framing_regions 預覽梁／梁柱內側封閉區域並批次建立樓板。含柱洞、重疊跳過、預覽驗證與交易回滾。詳見 [使用方式與限制](docs/ABBY-FRAMING-FLOORS.md)。
 
+
+## Local family library (preview)
+
+The [local Revit family library](family-library/README.md) adds searchable family previews and direct type loading/placement. Each computer configures its own source root; RFA files, catalogs and preview assets remain private. Install through `scripts/install-addon.ps1 -FamilyLibraryRoot <path>`. Revit placement and the 2026 build still require validation before release.
