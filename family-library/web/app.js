@@ -99,6 +99,7 @@ async function showPreview(interactive) {
   }
   $('#model-note').textContent = '拖曳旋轉 · 滾輪縮放 · 右鍵平移。3D 對應目前類型「' + selectedModel.familyType + '」。';
   if(selectedModel.dimensions) $('#model-note').textContent+=' 模型外框 X/Y/Z：'+selectedModel.dimensions.map(v=>(v*1000).toFixed(0)).join(' × ')+' mm。';
+  if(selectedModel.previewContext==='opening-host-wall') $('#model-note').textContent+=' 此為純開口元件，含示範宿主牆以顯示實際開孔；外框尺寸包含牆體。';
   host.textContent = '正在啟動 3D 檢視器…';
   try {
     viewerModulePromise ||= import('./viewer3d.js');
