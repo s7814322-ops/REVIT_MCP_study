@@ -107,7 +107,7 @@ for (const {filename,fullPath,relative} of listFamilyFiles(origin)) {
   items.push(item);
 }
 }
-const revision = crypto.createHash('sha256').update(JSON.stringify(items)).digest('hex');
+const revision = crypto.createHash('sha256').update(JSON.stringify({sources,items})).digest('hex');
 const catalog = {generated:revision === previous.revision ? previous.generated : new Date().toISOString(),revision,
   source:sources.map(origin=>origin.path).join('\n'),sources,items};
 for (const [name,value] of [['catalog.json',JSON.stringify(catalog)],['catalog.js','window.DOOR_CATALOG = ' + JSON.stringify(catalog).replaceAll('<', '\\u003c') + ';\n']]) {
