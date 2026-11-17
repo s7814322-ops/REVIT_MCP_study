@@ -16,6 +16,8 @@ export function createSettings({configPath,dist,metadataRoot,getSources,applySou
  function save(input){
   if(!input || typeof input.familyRoot!=='string')throw Error('請填寫元件根目錄。');
   const config={familyRoot:input.familyRoot.trim()};
+  const existing=read();
+  if(Array.isArray(existing.additionalSources) && existing.additionalSources.length)config.additionalSources=existing.additionalSources;
   if(env.ABBY_FAMILY_ROOT && config.familyRoot!==env.ABBY_FAMILY_ROOT)throw Error('根目錄由 ABBY_FAMILY_ROOT 環境變數指定。');
   const sources=resolveSources(config,env);
   const counts=[];
