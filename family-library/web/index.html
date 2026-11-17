@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Revit 元件圖書館 · ABBY</title>
+  <link rel="stylesheet" href="styles.css">
+  <script type="importmap">{"imports":{"three":"./vendor/three/three.module.js"}}</script>
+  <script defer src="catalog.js"></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="元件圖書館首頁"><span class="brand-icon">▥</span><span>ABBY <b>LIBRARY</b></span></a>
+    <span class="divider"></span><span class="library-label">Revit 元件圖書館</span>
+    <span class="local-badge"><i></i> 本機資料庫</span>
+  </header>
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="workspace-label">你的工作空間</div>
+      <h2>建築元件</h2>
+      <div class="active-library"><span>▥</span> 全部元件資料庫 <b id="all-count">76</b></div>
+      <div class="filter-title">依元件類別</div>
+      <nav id="categories" aria-label="元件類別"></nav>
+      <div class="filter-title">顯示選項</div>
+      <label class="check"><input type="checkbox" id="backups" checked> 包含備份版本</label>
+      <label class="check"><input type="checkbox" id="preview-only"> 僅顯示有預覽圖</label>
+      <label class="check"><input type="checkbox" id="favorites-only"> 僅顯示收藏</label>
+      <div class="source-box"><span>資料來源</span><strong>本機元件資料夾</strong><p id="source"></p><small id="generated"></small></div>
+      <div class="sidebar-foot">RFA 預覽與 Revit 實際外觀<br>PartAtom 已儲存的族群參數</div>
+    </aside>
+    <main>
+      <div class="breadcrumb">元件庫 <span>/</span> 所有來源</div>
+      <div class="heading"><div><div class="eyebrow">FAMILY COLLECTION</div><h1>找到適合的每一個元件<span>。</span></h1><p>瀏覽外觀、切換類型，查閱元件的真實參數。</p></div><div class="collection-number"><b id="total">76</b><span>個族群檔案</span></div></div>
+      <div class="toolbar"><label class="search"><span>⌕</span><input id="search" type="search" placeholder="搜尋名稱、類型或參數…" aria-label="搜尋元件"><kbd>/</kbd></label><select id="source-filter" aria-label="來源資料夾"><option value="">所有來源資料夾</option></select><select id="version-filter" aria-label="Revit 版本"><option value="">所有 Revit 版本</option></select><select id="sort" aria-label="排序"><option value="name">依名稱排序</option><option value="recent">最近修改</option><option value="types">類型數量</option><option value="size">檔案大小</option></select></div>
+      <div class="results-row"><span id="result-count"></span><span id="sync-status" class="sync-status" role="status">正在連線同步服務…</span></div>
+      <div id="grid" class="grid"></div>
+      <div id="empty" class="empty" hidden><span>⌕</span><h2>沒有符合的元件</h2><p>試試其他關鍵字，或調整左側篩選。</p><button id="reset">清除篩選</button></div>
+    </main>
+  </div>
+  <div id="overlay" class="overlay" hidden></div>
+  <aside id="detail" class="detail" hidden role="dialog" aria-modal="true" aria-labelledby="detail-title">
+    <div class="detail-top"><span>元件詳細資訊</span><button id="close" class="icon-button" aria-label="關閉詳細資訊">×</button></div>
+    <div class="detail-content">
+      <div class="detail-title-row"><div><div id="detail-category" class="eyebrow"></div><h2 id="detail-title"></h2></div><button id="favorite" class="icon-button" aria-label="收藏元件">☆</button></div>
+      <label class="field-label" for="type-select">族群類型</label><select id="type-select" class="full-select"></select>
+      <p id="type-size" class="type-size"></p><p id="type-status" class="type-status" role="status"></p>
+      <div class="tabs" role="tablist"><button id="tab-preview" role="tab" aria-selected="true">外觀預覽</button><button id="tab-params" role="tab" aria-selected="false">參數欄位 <span id="param-count"></span></button></div>
+      <section id="preview-panel" role="tabpanel">
+        <div class="viewer-switch"><button id="mode-3d" aria-pressed="true">3D 旋轉預覽</button><button id="mode-image" aria-pressed="false">圖片預覽</button></div>
+        <div id="large-preview" class="large-preview"></div>
+        <div id="viewer-actions" class="viewer-actions" hidden><button id="viewer-reset">重設視角</button><button id="viewer-front">正面</button><div></div><button id="viewer-out" aria-label="縮小 3D 模型">−</button><button id="viewer-in" aria-label="放大 3D 模型">＋</button></div>
+        <p id="model-note" class="model-note" hidden></p>
+        <p class="preview-note" id="preview-note"></p>
+        <div class="metadata" id="metadata"></div>
+      </section>
+      <section id="params-panel" role="tabpanel" hidden>
+        <p class="parameter-note">數值與單位取自 RFA 儲存的 PartAtom。切換類型可查看對應值。</p>
+        <input id="param-search" class="param-search" type="search" placeholder="搜尋參數名稱或數值…" aria-label="搜尋參數">
+        <div class="param-header"><span>參數名稱 / 資料型別</span><span>儲存值</span></div>
+        <div id="parameter-list"></div>
+      </section>
+      <div class="file-actions"><button id="revit-place" class="primary" hidden>載入並放置</button><button id="copy-path" class="primary">複製 RFA 檔案路徑</button><a id="download" class="secondary" download>下載 RFA</a></div>
+      <p id="revit-status" class="detail-foot" role="status" hidden></p>
+      <p class="detail-foot">切換族群類型會同步更新參數與對應 3D；未成功匯出的類型會顯示原因。</p>
+    </div>
+  </aside>
+  <div id="toast" role="status" class="toast" hidden></div>
+</body>
+</html>
