@@ -4,10 +4,16 @@
 $repo=Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 if($Version -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$'){throw 'Invalid release version'}
 if(!$OutputFolder){$OutputFolder=Join-Path $repo 'output\releases'}
-if(!$SkipBuild){Push-Location (Join-Path $repo 'MCP-Server');try{Invoke-AbbyNative 'npm.cmd' @('ci','--ignore-scripts');Invoke-AbbyNative 'npm.cmd' @('run','build')}finally{Pop-Location};foreach($year in @('24','25','26')){Invoke-AbbyNative 'dotnet' @('build',(Join-Path $repo 'MCP\RevitMCP.csproj'),'-c',"Release.R$year",'-v:q')}}
+if(!$SkipBuild){Push-Location (Join-Path $repo 'MCP-Server');try{Invoke-AbbyNative 'npm.cmd' @('ci','--ignore-scripts');Invoke-AbbyNative 'npm.cmd' @('run','build')}finally{Pop-Location};Push-Location (Join-Path $repo 'family-library');try{Invoke-AbbyNative 'npm.cmd' @('ci','--ignore-scripts');Invoke-AbbyNative 'node' @('prepare-web.mjs')}finally{Pop-Location};foreach($year in @('24','25','26')){Invoke-AbbyNative 'dotnet' @('build',(Join-Path $repo 'MCP\RevitMCP.csproj'),'-c',"Release.R$year",'-v:q')}}
 $stage=Join-Path ([IO.Path]::GetTempPath()) ('AbbyPackage-'+[guid]::NewGuid().ToString('N'));New-Item -ItemType Directory -Path $stage|Out-Null
+Invoke-AbbyNative node @((Join-Path $repo 'family-library\package-program.mjs'),(Join-Path $stage 'family-library'))
 foreach($year in @('2024','2025','2026')){$build=Join-Path $repo ('MCP\bin\Release.R'+$year.Substring(2));if(!(Test-Path -LiteralPath (Join-Path $build 'RevitMCP.dll'))){throw "Build $year first"};$dest=Join-Path $stage "addin\$year";New-Item -ItemType Directory -Path $dest -Force|Out-Null;Get-ChildItem -LiteralPath $build -File|Where-Object{$_.Extension -eq '.dll' -or $_.Name -match '^RevitMCP\.(deps|runtimeconfig)\.json$'}|Copy-Item -Destination $dest}
 Copy-Item -LiteralPath (Join-Path $repo 'MCP\RevitMCP.addin') -Destination (Join-Path $stage 'addin\RevitMCP.addin')
+foreach($year in @('2024','2025','2026')){
+ $loader=Join-Path $repo ('MCP\bin\Release.R'+$year.Substring(2)+'\runtimes\win-x64\native\WebView2Loader.dll')
+ if(!(Test-Path -LiteralPath $loader)){throw "Missing WebView2 x64 native loader for $year"}
+ Copy-Item -LiteralPath $loader -Destination (Join-Path $stage "addin\$year\WebView2Loader.dll")
+}
 New-Item -ItemType Directory -Path (Join-Path $stage 'server')|Out-Null
 foreach($name in @('build','package.json','package-lock.json')){Copy-Item -LiteralPath (Join-Path $repo "MCP-Server\$name") -Destination (Join-Path $stage 'server') -Recurse}
 New-Item -ItemType Directory -Path (Join-Path $stage 'worker')|Out-Null;Copy-Item -LiteralPath (Join-Path $repo 'bridge\python\skills\ezdxf_worker.py') -Destination (Join-Path $stage 'worker\ezdxf_worker.py')
