@@ -7,7 +7,7 @@ $program=Join-Path $fixture 'program'
 & node (Join-Path $repo 'family-library\package-program.mjs') $program
 if($LASTEXITCODE -ne 0){throw 'Program package failed'}
 $manifest=Get-Content -LiteralPath (Join-Path $program 'program-manifest.json') -Raw | ConvertFrom-Json
-if($manifest.files.Count -ne 21){throw 'Unexpected program inventory'}
+if($manifest.files.Count -ne 23){throw 'Unexpected program inventory'}
 foreach($entry in $manifest.files){if($entry.path -match '(?i)((^|/)catalog\.(json|js)$|sources\.local|models-index|type-models|\.rfa$|\.rvt$)'){throw 'Private data included in program package'}}
 Add-Type -AssemblyName Newtonsoft.Json
 $references=@((Get-ChildItem -LiteralPath (Join-Path $PSHOME 'ref') -Filter '*.dll').FullName)+[Newtonsoft.Json.JsonConvert].Assembly.Location
@@ -44,3 +44,4 @@ if($Package){
  }finally{$archive.Dispose()}
 }
 Write-Host 'PASS family-library release: checksum validation, private-data preservation, repair, unsafe-entry rejection, and first-update bootstrap.'
+

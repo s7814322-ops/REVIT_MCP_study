@@ -1,7 +1,10 @@
 import path from 'node:path';
 export function isAuthorizedCopy(family,processingVersion,copy,root) {
-  if(!copy || processingVersion!=='2024') return false;
+  if(!copy) return false;
   const location=path.resolve(root,copy);
+  if (family.sourceId==='escalators' && processingVersion==='2025')
+    return location.startsWith(path.join(root,'render/upgrade-copies/escalators-2025')+path.sep);
+  if(processingVersion!=='2024') return false;
   const oldDoor=['409c23bca0fe31c1','161556495257066b'].includes(family.id) && family.revitVersion==='2016' &&
     location.startsWith(path.join(root,'render/upgrade-copies/2024')+path.sep);
   const safety=family.sourceId==='safety' && family.revitVersion==='2018' &&

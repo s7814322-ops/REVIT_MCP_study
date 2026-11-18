@@ -37,6 +37,7 @@ function selectedTypeName() { return selected?.types[Number($('#type-select').va
 function typeRecord() {
   const types=selected.typeModels?.types || [];
   return types.find(type=>type.name===selectedTypeName()) ||
+    (selected.parseError && types.length===1 ? types[0] : null) ||
     (selected.types.length===1 && types.length===1 && types[0].name==='未命名類型' ? types[0] : null);
 }
 function resolveTypeModel() {
@@ -130,7 +131,7 @@ function parseFamily(item) {
   const xml = new DOMParser().parseFromString(item.atom, 'application/xml');
   const root = xml.documentElement;
   const hasError = root.localName === 'parsererror' || xml.getElementsByTagName('parsererror').length > 0;
-  if (hasError) return {...item, category:'資料待確認', types:[], common:[], parseError:true, searchText:item.name.toLowerCase()};
+  if (hasError) return {...item, category:item.webCategory || (item.sourceId==='safety'?'職安衛元件':'資料待確認'), version:item.revitVersion || '未提供', revitCategory:'未提供', types:[], common:[], parseError:true, searchText:[item.name,item.sourceLabel,item.relativePath].filter(Boolean).join(' ').toLowerCase()};
   const cat = children(root, 'category').find(node => text(child(node, 'scheme')) === 'adsk:revit:grouping');
   const actualCategory = text(child(cat, 'term')) || '未分類';
   const family = child(root, 'family');
@@ -406,3 +407,4 @@ checkSync();
 setInterval(checkSync, 3000);
 window.addEventListener('focus', checkSync);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) checkSync(); });
+

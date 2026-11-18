@@ -8,6 +8,7 @@ import {librarySources,loadSources} from './sources.mjs';
 import {listFamilyFiles} from './source-files.mjs';
 import {createSettings} from './settings.mjs';
 import {createPreviewSync} from './preview-sync.mjs';
+import {createMaintenance} from './maintenance.mjs';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 export function startLibrary({source, sources = source ? [{id:'doors',label:path.basename(source),path:source}] : librarySources,
@@ -71,6 +72,7 @@ const settings=createSettings({configPath,dist,metadataRoot,getSources:()=>sourc
  sources=next;catalog=updated;families=new Map(updated.items.map(item=>[item.id,item]));applied=fingerprint();candidate=null;
  sync={state:'watching',lastChecked:new Date().toISOString(),error:null,pendingIds:[]};
 }});
+const maintenance=createMaintenance({metadataRoot,configPath,getCatalog:()=>catalog,previewSync,refresh:()=>refresh(true)});
 const server = http.createServer((request, response) => {
   const expectedHost='127.0.0.1:'+server.address().port;
   if(request.headers.host!==expectedHost){response.writeHead(403).end();return;}
@@ -78,6 +80,17 @@ const server = http.createServer((request, response) => {
   try { route = decodeURIComponent(new URL(request.url, 'http://127.0.0.1').pathname); }
   catch { response.writeHead(400).end(); return; }
   const json=(status,value)=>{response.writeHead(status,{'Content-Type':'application/json; charset=utf-8','Cache-Control':'no-store'});response.end(request.method==='HEAD'?undefined:JSON.stringify(value));};
+  if(route==='/api/maintenance'){
+   if(request.method!=='POST'){json(405,{error:'Method not allowed'});return;}
+   if(request.headers.origin!=='http://'+expectedHost||request.headers['x-abby-config-token']!==settings.token||!/^application\/json(?:;|$)/i.test(request.headers['content-type']||'')){json(403,{error:'請從本機元件庫設定操作。'});return;}
+   const chunks=[];let size=0,ended=false;
+   request.on('data',chunk=>{size+=chunk.length;if(size>4096){if(!ended){ended=true;json(413,{error:'Request too large'});}return;}chunks.push(chunk);});
+   request.on('end',async()=>{if(ended)return;try{
+    const input=JSON.parse(Buffer.concat(chunks).toString('utf8'));
+    if(Object.keys(input).some(key=>!['action','dryRun'].includes(key)))throw Error('Only predefined maintenance actions are accepted.');
+    json(200,await maintenance.run(input.action,{dryRun:input.dryRun!==false}));
+   }catch(error){json(400,{error:error.message});}});return;
+  }
   if(route==='/api/settings'){
    if(['GET','HEAD'].includes(request.method)){json(200,settings.snapshot());return;}
    if(request.method!=='POST'){json(405,{error:'Method not allowed'});return;}
@@ -132,3 +145,4 @@ server.on('error', error => { clearInterval(monitor);if(previewMonitor)clearInte
 return server;
 }
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) startLibrary();
+

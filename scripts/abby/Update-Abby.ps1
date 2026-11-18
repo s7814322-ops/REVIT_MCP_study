@@ -2,6 +2,18 @@
 [CmdletBinding()]param([string]$Repo='',[string]$Package='',[string]$InstallRoot=(Join-Path $env:LOCALAPPDATA 'AbbyMCP'),[string]$StagingRoot='',[switch]$EnableAutoUpdate,[switch]$NonInteractive,[switch]$ValidateOnly)
 . (Join-Path $PSScriptRoot 'Abby.Common.ps1')
 $channel=Get-AbbyChannel
+$libraryHelper=Join-Path $PSScriptRoot 'LibraryUpdate.ps1'
+if(!(Test-Path -LiteralPath $libraryHelper)){
+ # Pre-feature updaters copy a fixed list of client files. Bootstrap the new
+ # helper from their already checksum-verified release without a manual install.
+ $bootstrapState=Read-AbbyJson (Join-Path $InstallRoot 'current.json')
+ $bootstrapRuntime=Get-AbbyChild (Join-Path $InstallRoot 'releases') $bootstrapState.Version
+ $bootstrapManifest=Read-AbbyJson (Join-Path $bootstrapRuntime 'manifest.json')
+ $bootstrapEntry=@($bootstrapManifest.Files|Where-Object {$_.Path -ceq 'client/LibraryUpdate.ps1'})
+ $libraryHelper=Get-AbbyChild $bootstrapRuntime 'client/LibraryUpdate.ps1'
+ if($bootstrapEntry.Count -ne 1 -or $bootstrapManifest.SourceRepository -ne $channel.Repository -or $bootstrapManifest.SourceBranch -ne $channel.Branch -or (Get-FileHash -LiteralPath $libraryHelper).Hash -ne $bootstrapEntry[0].Sha256){throw 'Verified library updater helper is missing'}
+}
+. $libraryHelper
 $mutex=New-Object Threading.Mutex($false,'Local\AbbyMCP-Update');if(!$mutex.WaitOne(0)){Write-Host 'Another Abby update is running.';exit 0}
 try{
  $privateNode=Join-Path $InstallRoot 'tools\node\node.exe';if(Test-Path -LiteralPath $privateNode){$env:PATH=(Split-Path -Parent $privateNode)+';'+$env:PATH}
@@ -29,14 +41,17 @@ try{
  if($ValidateOnly){Write-Host "Verified package $($manifest.Version); no add-ins/configuration modified.";return}
  $root=[IO.Path]::GetFullPath($InstallRoot);New-Item -ItemType Directory -Path $root -Force|Out-Null
  if($Repo){Test-AbbyRepo $Repo;Write-AbbyJson $configFile @{Repo=$Repo}}
- foreach($name in @('Update-Abby.ps1','Abby.Common.ps1','start-mcp.cjs','channel.json')){$source=Join-Path $PSScriptRoot $name;$dest=Join-Path $root $name;if([IO.Path]::GetFullPath($source)-ne [IO.Path]::GetFullPath($dest)){Copy-Item -LiteralPath $source -Destination $dest -Force}}
+ # Adopt the verified release's updater even if native deployment is deferred.
+ foreach($name in @('Update-Abby.ps1','LibraryUpdate.ps1','Abby.Common.ps1','start-mcp.cjs','channel.json')){$source=Join-Path $unpack ('client\'+$name);$dest=Join-Path $root $name;if(Test-Path -LiteralPath $source){Copy-Item -LiteralPath $source -Destination $dest -Force}}
+ Install-AbbyLibraryProgram (Join-Path $unpack 'family-library') (Join-Path $root 'door-library') $node.Source
  if($EnableAutoUpdate){
   if(!$Repo){throw 'Configure the private GitHub repository before enabling automatic updates'}
   $scriptPath=Join-Path $root 'Update-Abby.ps1';$action=New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "'+$scriptPath+'" -NonInteractive')
-  $trigger=New-ScheduledTaskTrigger -Once -At (Get-Date).AddHours(1) -RepetitionInterval (New-TimeSpan -Hours 1) -RepetitionDuration (New-TimeSpan -Days 3650)
+  $trigger=New-ScheduledTaskTrigger -Daily -DaysInterval 1 -At (Get-Date).Date.AddDays(1)
   $principal=New-ScheduledTaskPrincipal -UserId ([Security.Principal.WindowsIdentity]::GetCurrent().Name) -LogonType Interactive -RunLevel Limited
   Register-ScheduledTask -TaskName 'AbbyMCP-AutoUpdate' -Action $action -Trigger $trigger -Principal $principal -Description 'Install stable Abby releases when Revit is closed; no model operations.' -Force|Out-Null
  }
+ if(Test-AbbyLocalRuntimeChanges $root){Write-AbbyJson (Join-Path $root 'pending.json') @{Version=$manifest.Version;Reason='LocalRuntimeChanges';LibraryUpdated=$true};Write-Host 'Library updated. Local Abby extensions detected; native runtime preserved.';return}
  $running=@(Get-AbbyRunningRevit);if($running.Count -gt 0){Write-AbbyJson (Join-Path $root 'pending.json') @{Version=$manifest.Version;Reason='RevitRunning';Versions=$running};Write-Host ('Update deferred. Close Revit '+($running -join ', ')+'. The current version remains active.');return}
  $versions=@($manifest.Versions|Where-Object{Test-Path -LiteralPath (Join-Path $env:PROGRAMFILES "Autodesk\Revit $_\Revit.exe")});if($versions.Count -eq 0){throw 'No supported Revit2024/2025/2026 installation found'}
  $currentFile=Join-Path $root 'current.json';if(Test-Path -LiteralPath $currentFile){$current=Read-AbbyJson $currentFile;if($current.Version -eq $manifest.Version){$upToDate=$true;foreach($version in $versions){foreach($f in @(Get-ChildItem -LiteralPath (Join-Path $unpack "addin\$version") -File)){$dest=Join-Path $env:APPDATA "Autodesk\Revit\Addins\$version\RevitMCP\$($f.Name)";if(!(Test-Path -LiteralPath $dest)-or (Get-FileHash -LiteralPath $f.FullName).Hash -ne (Get-FileHash -LiteralPath $dest).Hash){$upToDate=$false}}};if($upToDate){Write-Host "Already installed: $($manifest.Version)";return}}}
@@ -55,7 +70,7 @@ try{
   $after=@(Get-AbbyTybim);if(($before|ConvertTo-Json -Depth 5 -Compress)-ne ($after|ConvertTo-Json -Depth 5 -Compress)){throw 'TYBIM inventory changed'}
   $otherAfter=@(Get-AbbyOtherAddins);if(($otherBefore|ConvertTo-Json -Depth 5 -Compress)-ne ($otherAfter|ConvertTo-Json -Depth 5 -Compress)){throw 'Other add-in inventory changed'}
  }catch{foreach($op in $done){if($op.Existed){Copy-Item -LiteralPath $op.Backup -Destination $op.Dest -Force}else{Remove-Item -LiteralPath $op.Dest -Force}};throw}
- foreach($name in @('Update-Abby.ps1','Abby.Common.ps1','start-mcp.cjs','channel.json')){Copy-Item -LiteralPath (Join-Path $runtime "client\$name") -Destination (Join-Path $root $name) -Force}
+ foreach($name in @('Update-Abby.ps1','LibraryUpdate.ps1','Abby.Common.ps1','start-mcp.cjs','channel.json')){Copy-Item -LiteralPath (Join-Path $runtime "client\$name") -Destination (Join-Path $root $name) -Force}
  $state=@{Version=$manifest.Version;SourceCommit=$manifest.SourceCommit;ToolCount=$manifest.ToolCount;Versions=$versions;InstalledUtc=[DateTime]::UtcNow.ToString('o');Backup=$backup;TybimUnchanged=$true};Write-AbbyJson ($currentFile+'.new') $state;Move-Item -LiteralPath ($currentFile+'.new') -Destination $currentFile -Force
  $launcher=(Join-Path $root 'start-mcp.cjs').Replace('\','/');$nodeCommand=$node.Source.Replace('\','/');$toml="[mcp_servers.abby]`ncommand = `"$nodeCommand`"`nargs = [`"$launcher`"]`n";[IO.File]::WriteAllText((Join-Path $root 'mcp-client.example.toml'),$toml)
  if(Test-Path -LiteralPath (Join-Path $root 'pending.json')){Remove-Item -LiteralPath (Join-Path $root 'pending.json') -Force}

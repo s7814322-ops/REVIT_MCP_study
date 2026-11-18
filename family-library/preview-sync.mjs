@@ -27,14 +27,16 @@ export function createPreviewSync({metadataRoot,configPath,getCatalog,onSourcesC
  let state;try{state=readJson(stateFile);}catch{state={applied:{},indexes:null};}
  state.applied ||= {};
  const status={state:'waiting',folder:null,published:0,imported:0,waiting:0,lastChecked:null,error:null};
- async function tick(){
-  if(busy)return;busy=true;
+ async function tick({repair=false,readOnlyShared=false}={}){
+  if(busy){if(repair)throw Error('Preview synchronization is busy; retry shortly.');return;}busy=true;
   try{
    status.lastChecked=new Date().toISOString();status.waiting=0;status.error=null;
    if(!fs.existsSync(configPath)){status.state='unconfigured';return;}
    const config=readJson(configPath),base=process.env.ABBY_FAMILY_ROOT || config.familyRoot;
    if(!base||!path.isAbsolute(base)||!fs.existsSync(base)){status.state='unconfigured';return;}
-   const shared=path.join(base,'_ABBY預覽同步');status.folder=shared;await io.mkdir(path.join(shared,'records'),{recursive:true});
+   const shared=path.join(base,'_ABBY預覽同步');status.folder=shared;
+   if(readOnlyShared){if(!fs.existsSync(path.join(shared,'records')))throw Error('Shared previews are not available yet.');}
+   else await io.mkdir(path.join(shared,'records'),{recursive:true});
    if(state.root!==base){state.root=base;state.indexes=null;state.applied={};state.sourcesPending=true;}
    const records=[];
    for(const directory of await io.readdir(path.join(shared,'records'),{withFileTypes:true})){
@@ -60,7 +62,7 @@ export function createPreviewSync({metadataRoot,configPath,getCatalog,onSourcesC
     return blob;
    }
    let publishPending=false;
-   if(before!==state.indexes || catalogKey!==state.catalog || state.publishPending){
+   if(!readOnlyShared && (before!==state.indexes || catalogKey!==state.catalog || state.publishPending)){
     for(const item of families.values()){
      try{
       const definition=definitions.get(item.sourceId);if(!definition?.relativePath)continue;
@@ -105,7 +107,7 @@ export function createPreviewSync({metadataRoot,configPath,getCatalog,onSourcesC
     const candidates=records.filter(record=>record.data.id===item.id&&record.data.sourceHash===item.sourceHash&&record.data.sourceVersion===item.revitVersion).sort((a,b)=>b.generation-a.generation||b.key.localeCompare(a.key,'en'));
     if(!candidates.length)continue;
     const signature=digest(candidates.map(record=>record.key).join('|'));
-    if(state.applied[item.id]===signature)continue;
+    if(!repair && state.applied[item.id]===signature)continue;
     try{
      const allowed=(record,kind)=>{if(!record||record.sourceHash!==item.sourceHash)return false;const version=kind==='preview'?/^Revit (\d{4})$/.exec(record.renderer||'')?.[1]:record.processingVersion;return version===item.revitVersion||isAuthorizedCopy(item,version,record.upgradedCopy,metadataRoot);};
      const group=candidates.find(record=>allowed(record.data.types,'types'))?.data.types;
