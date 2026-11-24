@@ -75,3 +75,39 @@ function Test-AbbyLocalRuntimeChanges([string]$Root){
  }
  return $false
 }
+
+function Publish-AbbyLibraryFamily {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$SourceFile,
+        [Parameter(Mandatory)][string]$LibraryFolder,
+        [switch]$Replace
+    )
+
+    $ErrorActionPreference = 'Stop'
+    $source = Get-Item -LiteralPath $SourceFile
+    $folder = Get-Item -LiteralPath $LibraryFolder
+    if ($source -isnot [System.IO.FileInfo] -or $source.Extension -ine '.rfa' -or
+        $source.Name -match '\.[0-9]{4}\.rfa$') {
+        throw 'Choose a final .rfa file without a Revit backup sequence number.'
+    }
+    if ($folder -isnot [System.IO.DirectoryInfo]) {
+        throw 'Choose an existing library category folder.'
+    }
+    $target = Join-Path $folder.FullName $source.Name
+    if ($source.FullName -ieq $target) { throw 'Publish from a separate working folder.' }
+
+    # Stage beside the destination for an atomic rename, with a non-indexed extension.
+    $pending = Join-Path $folder.FullName ([guid]::NewGuid().ToString('N') + '.pending')
+    try {
+        [System.IO.File]::Copy($source.FullName, $pending, $false)
+        if ($Replace -and [System.IO.File]::Exists($target)) {
+            [System.IO.File]::Replace($pending, $target, [System.Management.Automation.Language.NullString]::Value)
+        } else {
+            [System.IO.File]::Move($pending, $target)
+        }
+        Get-Item -LiteralPath $target
+    } finally {
+        if ([System.IO.File]::Exists($pending)) { [System.IO.File]::Delete($pending) }
+    }
+}

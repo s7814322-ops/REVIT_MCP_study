@@ -6,6 +6,10 @@ Human-facing installation and onboarding content belongs in `README.md` / `READM
 Shared BIM methods belong in `domain/*.md` and must remain bilingual or Chinese-friendly.
 AI-only operating instructions belong here and should be written in English to avoid encoding drift and mojibake.
 
+## Publishing families to the Abby component library
+
+Generate, edit, save and flex-test families in a working folder outside every library source folder, including when using export_families. Close each verified family before publishing. In a source checkout use scripts/Publish-AbbyLibraryFamily.ps1. On an installed workstation dot-source "$env:LOCALAPPDATA\AbbyMCP\LibraryUpdate.ps1" and invoke Publish-AbbyLibraryFamily -SourceFile <final-rfa> -LibraryFolder <category-folder>. Use -Replace only for an explicitly requested update. Never save directly in a library folder or bulk-copy a working directory into it.
+
 ## Project Overview
 
 ## Abby column creation workflow
