@@ -42,8 +42,14 @@ try{
  $root=[IO.Path]::GetFullPath($InstallRoot);New-Item -ItemType Directory -Path $root -Force|Out-Null
  if($Repo){Test-AbbyRepo $Repo;Write-AbbyJson $configFile @{Repo=$Repo}}
  # Adopt the verified release's updater even if native deployment is deferred.
- foreach($name in @('Update-Abby.ps1','LibraryUpdate.ps1','Abby.Common.ps1','start-mcp.cjs','channel.json')){$source=Join-Path $unpack ('client\'+$name);$dest=Join-Path $root $name;if(Test-Path -LiteralPath $source){Copy-Item -LiteralPath $source -Destination $dest -Force}}
+ foreach($name in @('Update-Abby.ps1','LibraryUpdate.ps1','Test-AbbyFamilyPublish.ps1','Abby.Common.ps1','start-mcp.cjs','channel.json')){$source=Join-Path $unpack ('client\'+$name);$dest=Join-Path $root $name;if(Test-Path -LiteralPath $source){Copy-Item -LiteralPath $source -Destination $dest -Force}}
  Install-AbbyLibraryProgram (Join-Path $unpack 'family-library') (Join-Path $root 'door-library') $node.Source
+ # Old clients adopt this updater automatically. Run even when native deployment is deferred.
+ $verifier = Join-Path $root 'Test-AbbyFamilyPublish.ps1'
+ if (Test-Path -LiteralPath (Join-Path $unpack 'client/Test-AbbyFamilyPublish.ps1')) {
+  try { & $verifier -InstallRoot $root -ReleaseVersion $manifest.Version | Out-Host }
+  catch { Write-Warning ("Family publish verification failed: " + $_.Exception.Message) }
+ }
  if($EnableAutoUpdate){
   if(!$Repo){throw 'Configure the private GitHub repository before enabling automatic updates'}
   $scriptPath=Join-Path $root 'Update-Abby.ps1';$action=New-ScheduledTaskAction -Execute 'powershell.exe' -Argument ('-NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "'+$scriptPath+'" -NonInteractive')
@@ -70,7 +76,7 @@ try{
   $after=@(Get-AbbyTybim);if(($before|ConvertTo-Json -Depth 5 -Compress)-ne ($after|ConvertTo-Json -Depth 5 -Compress)){throw 'TYBIM inventory changed'}
   $otherAfter=@(Get-AbbyOtherAddins);if(($otherBefore|ConvertTo-Json -Depth 5 -Compress)-ne ($otherAfter|ConvertTo-Json -Depth 5 -Compress)){throw 'Other add-in inventory changed'}
  }catch{foreach($op in $done){if($op.Existed){Copy-Item -LiteralPath $op.Backup -Destination $op.Dest -Force}else{Remove-Item -LiteralPath $op.Dest -Force}};throw}
- foreach($name in @('Update-Abby.ps1','LibraryUpdate.ps1','Abby.Common.ps1','start-mcp.cjs','channel.json')){Copy-Item -LiteralPath (Join-Path $runtime "client\$name") -Destination (Join-Path $root $name) -Force}
+ foreach($name in @('Update-Abby.ps1','LibraryUpdate.ps1','Test-AbbyFamilyPublish.ps1','Abby.Common.ps1','start-mcp.cjs','channel.json')){$source=Join-Path $runtime "client\$name";if(Test-Path -LiteralPath $source){Copy-Item -LiteralPath $source -Destination (Join-Path $root $name) -Force}}
  $state=@{Version=$manifest.Version;SourceCommit=$manifest.SourceCommit;ToolCount=$manifest.ToolCount;Versions=$versions;InstalledUtc=[DateTime]::UtcNow.ToString('o');Backup=$backup;TybimUnchanged=$true};Write-AbbyJson ($currentFile+'.new') $state;Move-Item -LiteralPath ($currentFile+'.new') -Destination $currentFile -Force
  $launcher=(Join-Path $root 'start-mcp.cjs').Replace('\','/');$nodeCommand=$node.Source.Replace('\','/');$toml="[mcp_servers.abby]`ncommand = `"$nodeCommand`"`nargs = [`"$launcher`"]`n";[IO.File]::WriteAllText((Join-Path $root 'mcp-client.example.toml'),$toml)
  if(Test-Path -LiteralPath (Join-Path $root 'pending.json')){Remove-Item -LiteralPath (Join-Path $root 'pending.json') -Force}

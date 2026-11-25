@@ -21,7 +21,7 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'knowledge\.agents') -Force
 Copy-Item -LiteralPath (Join-Path $repo '.claude\skills') -Destination (Join-Path $stage 'knowledge\.agents\skills') -Recurse
 Copy-Item -LiteralPath (Join-Path $repo 'domain') -Destination (Join-Path $stage 'knowledge\domain') -Recurse
 Copy-Item -LiteralPath (Join-Path $repo 'CLAUDE.md') -Destination (Join-Path $stage 'knowledge\CLAUDE.md')
-New-Item -ItemType Directory -Path (Join-Path $stage 'client')|Out-Null;foreach($name in @('Update-Abby.ps1','LibraryUpdate.ps1','Abby.Common.ps1','start-mcp.cjs','channel.json')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $stage 'client')}
+New-Item -ItemType Directory -Path (Join-Path $stage 'client')|Out-Null;foreach($name in @('Update-Abby.ps1','LibraryUpdate.ps1','Test-AbbyFamilyPublish.ps1','Abby.Common.ps1','start-mcp.cjs','channel.json')){Copy-Item -LiteralPath (Join-Path $PSScriptRoot $name) -Destination (Join-Path $stage 'client')}
 Invoke-AbbyNative node @((Join-Path $PSScriptRoot 'registry-snapshot.mjs'),(Join-Path $stage 'tools.json'));$inventory=Read-AbbyJson (Join-Path $stage 'tools.json')
 $sha=(& git -C $repo rev-parse HEAD);if($LASTEXITCODE -ne 0){throw 'Source commit unavailable'};$dirty=(@(& git -C $repo status --porcelain).Count -gt 0)
 $files=@(Get-ChildItem -LiteralPath $stage -File -Recurse|ForEach-Object{[pscustomobject]@{Path=$_.FullName.Substring($stage.Length+1).Replace('\','/');Sha256=(Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash}})
