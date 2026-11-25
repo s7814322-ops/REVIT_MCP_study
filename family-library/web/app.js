@@ -160,8 +160,58 @@ function parseFamily(item) {
 
 let items = source.items.map(parseFamily);
 const missingIcon = '<svg viewBox="0 0 60 70" aria-hidden="true"><path d="M8 65V5h44v60M16 65V13h28v52M36 39h3M5 65h50"/></svg>';
+function overviewModel(item) {
+  if (item.version === '2023' || item.modelReviewNote) return null;
+  return item.typeModels?.types.find(type => type.status === 'ready' && type.url)?.url || item.model?.url;
+}
+const snapshotCache = new Map();
+let snapshotQueue = Promise.resolve();
+async function snapshotFromGeometry(url) {
+  if (snapshotCache.has(url)) return snapshotCache.get(url);
+  const module = await (viewerModulePromise ||= import('./viewer3d.js'));
+  const host = document.createElement('div');
+  host.style.cssText = 'position:fixed;left:-1200px;top:0;width:720px;height:440px;pointer-events:none';
+  document.body.append(host);
+  let handle;
+  try {
+    const png = await new Promise((resolve, reject) => {
+      handle = module.createFamilyViewer(host, url, reject, resolve);
+    });
+    if (snapshotCache.size >= 32) snapshotCache.delete(snapshotCache.keys().next().value);
+    snapshotCache.set(url, png);
+    return png;
+  } finally {
+    handle?.dispose();
+    host.remove();
+  }
+}
+const visibleOverviews = new IntersectionObserver(entries => {
+  for (const entry of entries) {
+    if (!entry.isIntersecting) continue;
+    const target = entry.target;
+    visibleOverviews.unobserve(target);
+    snapshotQueue = snapshotQueue.then(async () => {
+      if (!target.isConnected) return;
+      try {
+        const image = new Image();
+        image.src = await snapshotFromGeometry(target.dataset.url);
+        image.alt = target.dataset.label;
+        target.replaceWith(image);
+      } catch {
+        target.textContent = '無法產生圖片預覽';
+      }
+    });
+  }
+});
+customElements.define('abby-overview', class extends HTMLElement {
+  connectedCallback() { visibleOverviews.observe(this); }
+  disconnectedCallback() { visibleOverviews.unobserve(this); }
+});
+
 function preview(item, large = false) {
   if (item.preview) return '<img loading="' + (large ? 'eager' : 'lazy') + '" src="' + escapeHtml(item.preview) + '" alt="' + escapeHtml(item.name) + ' 的' + escapeHtml(item.previewSource || '外觀預覽') + '">';
+  const url = overviewModel(item);
+  if (url) return '<abby-overview class="missing" data-url="' + escapeHtml(url) + '" data-label="' + escapeHtml(item.name + ' 的模型靜態預覽') + '">正在產生圖片預覽…</abby-overview>';
   return '<div class="missing">' + missingIcon + '<span>檔案未內建預覽圖</span></div>';
 }
 
@@ -193,7 +243,7 @@ function render() {
     (!$('#source-filter').value || item.sourceId === $('#source-filter').value) &&
     (!$('#version-filter').value || item.version === $('#version-filter').value) &&
     ($('#backups').checked || !item.backup) &&
-    (!$('#preview-only').checked || item.preview) &&
+    (!$('#preview-only').checked || item.preview || overviewModel(item)) &&
     (!$('#favorites-only').checked || favorites.has(item.id)) &&
     (!query || item.searchText.includes(query)));
   result.sort((a, b) => {
@@ -376,7 +426,7 @@ function applyCatalog(next, initial = false) {
       $('#param-search').value = paramQuery; changeType(); switchTab(paramsOpen);
     }
   }
-  window.libraryDiagnostics = {total:items.length,previews:items.filter(item => item.preview).length,types:items.reduce((sum,item) => sum+item.types.length,0),pending:items.filter(item => item.modelPending).length,revision:source.revision};
+  window.libraryDiagnostics = {total:items.length,previews:items.filter(item => item.preview || overviewModel(item)).length,types:items.reduce((sum,item) => sum+item.types.length,0),pending:items.filter(item => item.modelPending).length,revision:source.revision};
   if (!initial) toast('元件資料已自動更新');
 }
 applyCatalog(source, true);

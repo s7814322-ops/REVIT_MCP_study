@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import {OrbitControls} from './vendor/three/OrbitControls.js';
 
-export function createFamilyViewer(container, modelUrl, onError) {
+export function createFamilyViewer(container, modelUrl, onError, onSnapshot) {
   const abort = new AbortController();
   let disposed = false;
   let animation;
@@ -168,6 +168,11 @@ export function createFamilyViewer(container, modelUrl, onError) {
       resizeObserver.observe(container);
       resize();
       fit();
+      if (onSnapshot) {
+        renderer.render(scene, camera);
+        onSnapshot(renderer.domElement.toDataURL('image/png'));
+        return;
+      }
       function render() {
         if (disposed) return;
         controls.update();
